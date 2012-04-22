@@ -1,13 +1,11 @@
-﻿#define HAVERSINE
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
 namespace GraphMaker
 {
-    public enum DIRECTION { NORTH = 0, SOUTH, EAST, WEST };
+    public enum DIRECTION { NORTH = 0, SOUTH, EAST, WEST }; // the direction of the lat/long measurement (i.e. 56 degrees north)
 /*
                           -1   straight line distance
 surface distance = 2 R sin   (------------------------)
@@ -17,11 +15,11 @@ surface distance = 2 R sin   (------------------------)
     {
         double latitude; // in degrees only (convert minutes to fraction of degree -> (minutes / 60 * 100)
         double longitude;
-        DIRECTION latitude_direction;
+        DIRECTION latitude_direction; // the direction of the lat/long measurement (i.e. 56 degrees north)
         DIRECTION longitude_direction;
-        public double x { get; set; }
+        public double x { get; set; } // convert (latitude, longitude) to Cartesian (x, y, z)
         public double y { get; set; }
-        public double z { get; set; } // convert (latitude, longitude) to Cartesian (x, y, z)
+        public double z { get; set; } 
 
         public const double PI = 3.141592;
         public const double RADIUS_OF_EARTH = 6367.0; // not exact, and the earth isn't a sphere either
@@ -29,6 +27,10 @@ surface distance = 2 R sin   (------------------------)
         public double phi;
         public double theta;
 
+        /**
+         * Constructor creates a LatLongPoint with latitude and longitude in degrees (ONLY, must convert minutes)
+         * relative to either N/S and E/W. The point is converted to Cartesian (x,y,z) 3d coordinates
+         */ 
         public LatLongPoint(double latitude, DIRECTION lat_dir, double longitude, DIRECTION lon_dir)
         {
             this.latitude = latitude;
@@ -36,9 +38,12 @@ surface distance = 2 R sin   (------------------------)
             this.latitude_direction = lat_dir;
             this.longitude_direction = lon_dir;
             CalculatePhiAndTheta();
-            CalculateXYZ();
+            CalculateXYZ(); // convert lat/long to Cartesian (x, y, z) spherical coordinates
         }
 
+        /**
+         * Phi and Theta are used in the conversion from lat/long to spherical coordinates
+         */ 
         public void CalculatePhiAndTheta()
         {
             if (latitude_direction == DIRECTION.NORTH)
@@ -55,6 +60,9 @@ surface distance = 2 R sin   (------------------------)
             theta = DegreesToRadians(theta);
         }
 
+        /**
+         * Calculate Cartesian (x, y, z) 3d coordinates using Phi and Theta
+         */ 
         public void CalculateXYZ()
         {
             x = RADIUS_OF_EARTH * Math.Cos(theta) * Math.Sin(phi);
@@ -63,6 +71,10 @@ surface distance = 2 R sin   (------------------------)
             Console.WriteLine("x: {0}\ny: {1}\nz: {2}", x, y, z);
         }
 
+        /**
+         * Convert degrees to radians - note degrees only, convert minutes to fractions of a degree (minutes / 60 * 100)
+         * before passing to this function
+         */ 
         public static double DegreesToRadians(double degrees)
         {
             double radians;
@@ -70,12 +82,16 @@ surface distance = 2 R sin   (------------------------)
             return radians;
         }
 
+        /**
+         * Calculate the straight line distance from one 3d Cartesian coordinate to another, this straight line goes
+         * THROUGH the sphere of the earth, not over the surface, and is used in the SurfaceDistance() function
+         */ 
         public static double StraightLineDistance(LatLongPoint a, LatLongPoint b)
         {
             double distance = 0.0;
             double xd, yd, zd;
 
-            xd = b.x - a.x; // find a vector from a -> b
+            xd = b.x - a.x; // find a vector from a -> b by subtracting the coordinates of a from the coordinates of b
             yd = b.y - a.y;
             zd = b.z - a.z;
 
@@ -83,7 +99,12 @@ surface distance = 2 R sin   (------------------------)
 
             return distance;
         }
-
+        /**
+         * Find the distance over the earth's surface, given a straight line distance from one point to another.
+         * 
+         * I haven't figured out how to derive this function, it seems to be a simplified Haversine and produces a fairly
+         * accurate calculation.
+         */ 
         public static double SurfaceDistance(double straight_line_distance)
         {
             double distance = 0.0;
@@ -93,12 +114,15 @@ surface distance = 2 R sin   (------------------------)
             return distance;
         }
 
+        /**
+         * Calculate the great circle distance from one lat/long point to another using implementation of Haversine
+         */ 
         public static double Haversine(LatLongPoint PointA, LatLongPoint PointB)
         {
-            double dLat = PointB.latitude - PointA.latitude;
-            double dLon = PointB.longitude - PointA.longitude;
-            double lat1 = PointA.latitude;
-            double lat2 = PointB.latitude;
+            double dLat = PointB.latitude - PointA.latitude; // dLat is the difference in latitude
+            double dLon = PointB.longitude - PointA.longitude; // dLon is the difference in longitude
+            double lat1 = PointA.latitude; // saves space in formula for readability
+            double lat2 = PointB.latitude; // "     "     "  "       "   " 
 
             /* This bit (commented) requires conversion to radians first, the next bit (in use) includes (degrees / (180/PI))
             // http://www.movable-type.co.uk/scripts/latlong.html

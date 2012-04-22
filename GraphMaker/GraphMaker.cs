@@ -123,16 +123,16 @@ namespace GraphMaker
             strings.Add("Mckinnon");
             graph.CreateGraph(strings.ToArray<string>()); // create the graph with the list (array) of strings as input
             graph.PrintGraph(); // print the graph
-            Console.ReadKey(); // wait for input
 
             // END TEST GRAPH
 
             // START TEST HAVERSINE
 
             Console.WriteLine();
-            LatLongPoint a = new LatLongPoint(35.2883, DIRECTION.NORTH, 120.6529, DIRECTION.WEST);
+            LatLongPoint a = new LatLongPoint(35.2883, DIRECTION.NORTH, 120.6529, DIRECTION.WEST); // x, y, z is printed to console
             LatLongPoint b = new LatLongPoint(46.6001, DIRECTION.NORTH, 112.388, DIRECTION.WEST);
             double straight_distance = LatLongPoint.StraightLineDistance(a, b);
+            Console.WriteLine();
             Console.WriteLine("straight line distance: {0}", straight_distance);
             double surface_distance = LatLongPoint.SurfaceDistance(straight_distance);
             Console.WriteLine("surface distance: {0}", surface_distance);
