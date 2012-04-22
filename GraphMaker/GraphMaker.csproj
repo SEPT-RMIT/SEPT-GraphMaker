@@ -50,6 +50,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="GraphMaker.cs" />
+    <Compile Include="Haversine.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="System" />

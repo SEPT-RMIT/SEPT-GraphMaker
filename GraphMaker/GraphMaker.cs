@@ -111,6 +111,8 @@ namespace GraphMaker
     {
         static void Main()
         {
+            // START TEST GRAPH
+
             Graph graph = new Graph(); // initialise a new graph
             List<String> strings = new List<String>(); // initialise a new list of strings
             strings.Add("Mentone"); // add a bunch of stations to the list
@@ -122,6 +124,24 @@ namespace GraphMaker
             graph.CreateGraph(strings.ToArray<string>()); // create the graph with the list (array) of strings as input
             graph.PrintGraph(); // print the graph
             Console.ReadKey(); // wait for input
+
+            // END TEST GRAPH
+
+            // START TEST HAVERSINE
+
+            Console.WriteLine();
+            LatLongPoint a = new LatLongPoint(35.2883, DIRECTION.NORTH, 120.6529, DIRECTION.WEST);
+            LatLongPoint b = new LatLongPoint(46.6001, DIRECTION.NORTH, 112.388, DIRECTION.WEST);
+            double straight_distance = LatLongPoint.StraightLineDistance(a, b);
+            Console.WriteLine("straight line distance: {0}", straight_distance);
+            double surface_distance = LatLongPoint.SurfaceDistance(straight_distance);
+            Console.WriteLine("surface distance: {0}", surface_distance);
+            double haversine_distance = LatLongPoint.Haversine(a, b);
+            Console.WriteLine("haversine distance: {0}", haversine_distance);
+            
+            Console.ReadKey();
+
+            // END TEST HAVERSINE
         } // END MAIN
     }
 }
