@@ -7,141 +7,147 @@ using System.Text;
 
 namespace GraphMaker
 {
-    /**
-     * GraphNodes for the Graph class. Each node has a reference to the next node, or no reference
-     * in the case of the last node in the sequence, it's next reference is "" (null)
-     * 
-     * This class will need to be modified to work with a graph that is greater than 1 dimension, it
-     * currently supports a one dimensional graph - a single linked list.
-     */ 
+    public class Station
+    {
+        public string Name { get; set; }
+        public Dictionary<int, string> Times { get; set; }
+        //public GoogleGeoCodeResponse Geo { get; set; }
+        public Station(string name) { this.Name = name;  this.Times = new Dictionary<int, string>(); }
+    }
+
     public class GraphNode
     {
         public string name { get; set; } // the name of the node
-        public string next { get; set; } // a reference to the next node
+        public List<string> lines; // what lines is this station part of (ie a train line and a bus route)
+        public Dictionary<string, Dictionary<string, Station>> adjacency_list; // <line, <next/prev, station>>
 
-        /**
-         * Constructor takes only a node name
-         */
-        public GraphNode(string name)
+        public GraphNode(Station station, string line, Station next, Station prev)
         {
-            #if(DEBUG)
-            Console.WriteLine("creating node({0})", name);
-            #endif
-            this.name = name; // set name
-            this.next = String.Empty; // set next to ""
-        }
-        /**
-         * This constructor takes a node name, and a reference to the next node
-         */
-        public GraphNode(string node_name, string next_name)
-            : this(node_name) // calls default constructor first
-        {
-            #if (DEBUG)
-            Console.WriteLine("creating node({0}, {1})", node_name, next_name);
-            #endif
-            if (next_name != null && next_name != String.Empty) // if the next_name provided is not null or ""
-            {
-                this.next = next_name; // set next name
-            }
-        }
-
-        /**
-         * Write the node information to a string "Name: name       Next: next_name"
-         */ 
-        override public string ToString()
-        {
-            StringBuilder str = new StringBuilder();
-            str.Append("Name: ");
-            str.Append(name);
-            if (name.Length < 10) // short names need an extra tab to line up with long names
-                str.Append("\t");
-            str.Append("\tNext: ");
-            str.Append(next); // if there's no next, this will append String.Empty
-            return str.ToString();
+            name = station.Name; // set the name of the node to the name of the station
+            lines = new List<string>(); // this list is kinda redundant, but you can see what lines exist in the graph if you access it
+            lines.Add(line); // add this line/route to the list of lines/routes that this station is part of
+            adjacency_list = new Dictionary<string, Dictionary<string, Station>>(); // <line, <next/prev, station>>
+            Dictionary<string, Station> adj = new Dictionary<string, Station>(); // <next = Station, prev = Station>
+            adj.Add("next", next); // "next" = Station next
+            adj.Add("prev", prev); // "prev" = Station prev
+            adjacency_list.Add(line, adj);
         }
     }
     
-    /**
-     * The Graph class models a graph structure of connected nodes. At this stage, it's a single linked list
-     */ 
     public class Graph
     {
-        List<GraphNode> nodes; // the nodes of the graph, each node is connected by a reference to the next
+        List<GraphNode> graph; // the nodes of the graph, each node is connected by a reference to the next
 
         public Graph()
         {
-            nodes = new List<GraphNode>(); // initalise the list
+            graph = new List<GraphNode>(); // initalise the list
         }
 
-        /**
-         * Create a graph from an array of strings. Each string represents a station and except for the last,
-         * will contain a reference to the next station. The graph is one-dimensional at this stage (a linked list).
-         */ 
-        public void CreateGraph(string[] strings) // I used an array here so I can iterate it, can probably use List though.
+        public void AddLineToGraph(List<Station> line, string line_name)
         {
-            for (int i = 0; i < strings.Length; i++) // for each string
+            for (int i = 0; i < line.Count; i++) // for each string
             {
-                if (i != (strings.Length - 1)) // if it's not the last node in the list
+                bool node_exists = false;
+                Station prev = null, next = null;
+                if (i != 0) // not the first node, a previous station exists
                 {
-                    nodes.Add(new GraphNode(strings[i], strings[i + 1])); // create a new node with a reference to the next node
+                    prev = line[i - 1]; // prev = the previous station in the list
                 }
-                else
+                if (i != (line.Count - 1)) // not the last node, a next station exists
                 {
-                    nodes.Add(new GraphNode(strings[i])); // else create a new node with no next node
+                    next = line[i + 1]; // next = the next station in the list
+                }
+
+                // if the node already exists in the graph, we want to add this line/route
+                // and these next/prev references to it's adjacency_list rather than
+                // add a duplicate node
+
+                foreach(GraphNode n in graph)
+                {
+                    if (n.name == line[i].Name) // if a node exists with this name
+                    {
+                        Dictionary<string, Station> adj = new Dictionary<string, Station>(); // new sub-Dict
+                        adj.Add("next", next); // set next reference
+                        adj.Add("prev", prev); // set prev reference
+                        n.adjacency_list.Add(line_name, adj); // add sub-Dict to main-Dict
+                        node_exists = true; // set a flag
+                    }
+                }
+
+                // ADD A NEW NODE, if we ammended an existing node, we skip this part
+                if (node_exists == false)
+                {
+                    GraphNode node = new GraphNode(line[i], line_name, next, prev); // create a new node
+                    graph.Add(node); // add it to the graph
                 }
             }
         }
 
-        /**
-         * Print the name and next for each node in the graph
-         */ 
-        public void PrintGraph()
+        // order of print not necessarily correct, ammended nodes get rearranged in the list
+        public void PrintGraph(string line)
         {
-            foreach (GraphNode node in nodes)
+            foreach (GraphNode node in graph)
             {
-                Console.WriteLine("{0}", node.ToString());
+                if (node.adjacency_list.ContainsKey(line)) // if the node is on the specified line/route
+                {
+                    Console.Write("{0} ", node.name); // print it's name
+                    Dictionary<string, Station> adj = node.adjacency_list[line]; // grab the next/prev dict
+                    foreach (KeyValuePair<string, Station> pair in adj)
+                    {
+                        
+                        Console.Write("{0} ", pair.Key); // print "next" / "prev"
+                        if (pair.Value != null) // first/last station have no reference for prev/next respectively
+                        {
+                            Console.Write("{0} ", pair.Value.Name); // print the next/prev
+                        }
+                        else
+                        {
+                            Console.Write("NONE "); // else print NONE
+                        }
+
+                        if (pair.Key == "prev") // if this is the "prev" reference
+                        {
+                            Console.WriteLine(); // give us a newline
+                        }
+                    }
+                }
             }
         }
     }
 
-    /**
-     * The main application class, runs a small example
-     */ 
     public class GraphMaker
     {
         static void Main()
         {
-            // START TEST GRAPH
+            Graph graph = new Graph();
+            List<Station> FrankstonLine = new List<Station>();
+            List<Station> DandenongLine = new List<Station>();
 
-            Graph graph = new Graph(); // initialise a new graph
-            List<String> strings = new List<String>(); // initialise a new list of strings
-            strings.Add("Mentone"); // add a bunch of stations to the list
-            strings.Add("Cheltenham");
-            strings.Add("Highett");
-            strings.Add("Moorabbin");
-            strings.Add("Patterson");
-            strings.Add("Mckinnon");
-            graph.CreateGraph(strings.ToArray<string>()); // create the graph with the list (array) of strings as input
-            graph.PrintGraph(); // print the graph
+            FrankstonLine.Add(new Station("Highett"));
+            FrankstonLine.Add(new Station("Moorabbin"));
+            FrankstonLine.Add(new Station("Patterson"));
+            FrankstonLine.Add(new Station("Bentleigh"));
+            FrankstonLine.Add(new Station("McKinnon"));
+            FrankstonLine.Add(new Station("Ormond"));
+            FrankstonLine.Add(new Station("Glenhuntly"));
+            FrankstonLine.Add(new Station("Caulfield"));
 
-            // END TEST GRAPH
+            graph.AddLineToGraph(FrankstonLine, "Frankston Line");
 
-            // START TEST HAVERSINE
+            DandenongLine.Add(new Station("Huntingdale"));
+            DandenongLine.Add(new Station("Oakleigh"));
+            DandenongLine.Add(new Station("Hughesdale"));
+            DandenongLine.Add(new Station("Murrumbeena"));
+            DandenongLine.Add(new Station("Carnegie"));
+            DandenongLine.Add(new Station("Caulfield"));
 
+            graph.AddLineToGraph(DandenongLine, "Dandenong Line");
+
+            graph.PrintGraph("Frankston Line");
             Console.WriteLine();
-            LatLongPoint a = new LatLongPoint(35.2883, DIRECTION.NORTH, 120.6529, DIRECTION.WEST); // x, y, z is printed to console
-            LatLongPoint b = new LatLongPoint(46.6001, DIRECTION.NORTH, 112.388, DIRECTION.WEST);
-            double straight_distance = LatLongPoint.StraightLineDistance(a, b);
-            Console.WriteLine();
-            Console.WriteLine("straight line distance: {0}", straight_distance);
-            double surface_distance = LatLongPoint.SurfaceDistance(straight_distance);
-            Console.WriteLine("surface distance: {0}", surface_distance);
-            double haversine_distance = LatLongPoint.Haversine(a, b);
-            Console.WriteLine("haversine distance: {0}", haversine_distance);
-            
+            graph.PrintGraph("Dandenong Line");
+
             Console.ReadKey();
-
-            // END TEST HAVERSINE
-        } // END MAIN
+        }
     }
 }
