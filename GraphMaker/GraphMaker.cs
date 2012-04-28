@@ -113,6 +113,67 @@ namespace GraphMaker
                 }
             }
         }
+
+        // Breadth First Search
+        public bool BFS(Station start, Station end)
+        {
+            GraphNode root = null;
+            bool found = false;
+            foreach (GraphNode n in graph) // first check if the station is in the graph
+            {
+                if (n.name == start.Name)
+                {
+                    root = n; // store this node as the root node to begin BFS with
+                    found = true; // the station does exist
+                }
+            }
+            if (found == false) // the station does NOT exist, return
+                return false;
+
+            Queue<GraphNode> queue = new Queue<GraphNode>();
+            List<string> visited = new List<string>(); // this list contains the name of nodes that have been visited.
+
+            queue.Enqueue(root);
+            visited.Add(root.name);
+
+            while (queue.Count > 0) // while the queue is not empty, we still have nodes to check
+            {
+                GraphNode check = queue.Dequeue(); // check the next node
+                if (check.name == end.Name)
+                {
+                    Console.WriteLine("FOUND IT!! Start {0} End {1}", start.Name, end.Name);
+                    return true;
+                }
+
+                //visited.Add(n.name); // mark it as visited SHOULD THIS GO HERE?
+
+                string[] lines = check.adjacency_list.Keys.ToArray<string>(); // get all the lines that this node is part of
+                foreach(string line in lines)
+                {
+                    Dictionary<string, Station> adj = check.adjacency_list[line]; // grab the next/prev dict
+                    foreach (KeyValuePair<string, Station> pair in adj)
+                    {
+                        if (pair.Value != null) // there is a next/prev node
+                        {
+                            foreach (GraphNode n in graph) // find the station is in the graph
+                            {
+                                if (n.name == pair.Value.Name)
+                                {
+                                    queue.Enqueue(n); // enqueue the node
+                                    visited.Add(n.name); // mark it as visited
+                                    found = true; // the station does exist
+                                }
+                            }
+                            if (found == false) // the station does NOT exist, return false (this is bad)
+                                return false;
+                        }
+                    }
+
+                }
+
+            }
+            return false; // not found
+        }
     }
 
     public class GraphMaker
@@ -122,7 +183,10 @@ namespace GraphMaker
             Graph graph = new Graph();
             List<Station> FrankstonLine = new List<Station>();
             List<Station> DandenongLine = new List<Station>();
+            List<Station> Bus903 = new List<Station>();
 
+            FrankstonLine.Add(new Station("Mentone"));
+            FrankstonLine.Add(new Station("Cheltenham"));
             FrankstonLine.Add(new Station("Highett"));
             FrankstonLine.Add(new Station("Moorabbin"));
             FrankstonLine.Add(new Station("Patterson"));
@@ -143,9 +207,25 @@ namespace GraphMaker
 
             graph.AddLineToGraph(DandenongLine, "Dandenong Line");
 
+            Bus903.Add(new Station("Oakleigh"));
+            Bus903.Add(new Station("Warrigal North Rds"));
+            Bus903.Add(new Station("Warrigal/South Rds"));
+            Bus903.Add(new Station("Warrigal/Centre Dandenong Rds"));
+            Bus903.Add(new Station("Mentone"));
+
+            graph.AddLineToGraph(Bus903, "Bus 903");
+
             graph.PrintGraph("Frankston Line");
             Console.WriteLine();
             graph.PrintGraph("Dandenong Line");
+            Console.WriteLine();
+            graph.PrintGraph("Bus 903");
+
+            /*
+             * A cycle exists from Mentone >> Caulfield >> Oakleigh >> Mentone
+             **/
+            Console.WriteLine();
+            bool bfs_found = graph.BFS(new Station("Mentone"), new Station("Warrigal/Centre Dandenong Rds"));
 
             Console.ReadKey();
         }
