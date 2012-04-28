@@ -117,6 +117,9 @@ namespace GraphMaker
         // Breadth First Search
         public bool BFS(Station start, Station end)
         {
+            // this dictionary contains GraphNode pairs, a node and it's previous node, to determine the path
+            Dictionary<GraphNode, GraphNode> path = new Dictionary<GraphNode, GraphNode>();
+
             // FIRST CHECK IF THE start NODE EXISTS
             GraphNode root = null;
             bool found = false;
@@ -139,13 +142,44 @@ namespace GraphMaker
 
             queue.Enqueue(root); // enqueue the root node
             visited.Add(root.name); // and mark it as visited
+            path.Add(root, null); // root came from null
 
             while (queue.Count > 0) // while the queue is not empty, we still have nodes to check
             {
                 GraphNode check = queue.Dequeue(); // dequeue a node
+                Console.WriteLine("Checking: {0}", check.name);
                 if (check.name == end.Name) // if this is the end node, we are done
                 {
-                    Console.WriteLine("FOUND IT!! Start {0} End {1}", start.Name, end.Name);
+                    Console.WriteLine("FOUND IT!! Start {0} End {1}\n", start.Name, end.Name);
+                    // dump the visited list, not particularly useful, it shows all the nodes BFS visited
+                    foreach (string station in visited.ToArray())
+                    {
+                        Console.WriteLine("Visited List: {0}", station);
+                    }
+                    // backtrack the path, this IS USEFUL! We can determine the path we took to find the end node
+                    GraphNode curr = check, prev = null; // set curr to the node we found and init prev to null
+                    List<string> list_path = new List<string>(); // this list contains the path
+                    list_path.Add(curr.name); // add the node we just found as the end of the path
+                    while (curr != root) // while we are not back at the first node
+                    {
+                        if (path.TryGetValue(curr, out prev) == true) // found a value matching the key
+                        {
+                            list_path.Add(prev.name); // add the previous node to the path
+                            curr = prev; // set current node to previous node and repeat
+                        }
+                        else
+                        {
+                            Console.WriteLine("Couldn't find the prev node, path broken."); // uh oh
+                            break; // finished, we're doomed
+                        }
+                    }
+                    //print the path to console
+                    Console.WriteLine(); // newline
+                    foreach (string station in list_path)
+                    {
+                        Console.WriteLine("Path: {0}", station); // each station in the path
+                    }
+
                     return true;
                 }
 
@@ -160,11 +194,12 @@ namespace GraphMaker
                         {
                             foreach (GraphNode n in graph) // find the station in the graph (this sucks, I have to search the whole graph to find the node again)
                             {
-                                if (n.name == pair.Value.Name) // if the node name matches the next/prev name we are checking
+                                if (n.name == pair.Value.Name && visited.Contains(n.name) == false) // if the node name matches the next/prev name we are checking
                                 {
                                     queue.Enqueue(n); // enqueue the node
                                     visited.Add(n.name); // mark it as visited
                                     found = true; // flag the station does exist
+                                    path.Add(n, check); // node n, came from node check
                                 }
                             }
                             if (found == false) // the station does NOT exist, return false (this is bad and shouldn't happen, means we have bad references)
@@ -209,8 +244,9 @@ namespace GraphMaker
 
             graph.AddLineToGraph(DandenongLine, "Dandenong Line");
 
+            Bus903.Add(new Station("Warrigal Rd/Princes Hwy"));
             Bus903.Add(new Station("Oakleigh"));
-            Bus903.Add(new Station("Warrigal North Rds"));
+            Bus903.Add(new Station("Warrigal/North Rds"));
             Bus903.Add(new Station("Warrigal/South Rds"));
             Bus903.Add(new Station("Warrigal/Centre Dandenong Rds"));
             Bus903.Add(new Station("Mentone"));
@@ -227,7 +263,7 @@ namespace GraphMaker
              * A cycle exists from Mentone >> Caulfield >> Oakleigh >> Mentone
              **/
             Console.WriteLine();
-            bool bfs_found = graph.BFS(new Station("Mentone"), new Station("Warrigal/Centre Dandenong Rds"));
+            bool bfs_found = graph.BFS(new Station("Mentone"), new Station("Warrigal Rd/Princes Hwy"));
 
             Console.ReadKey();
         }
