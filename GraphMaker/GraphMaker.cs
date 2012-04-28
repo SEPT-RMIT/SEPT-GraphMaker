@@ -117,6 +117,7 @@ namespace GraphMaker
         // Breadth First Search
         public bool BFS(Station start, Station end)
         {
+            // FIRST CHECK IF THE start NODE EXISTS
             GraphNode root = null;
             bool found = false;
             foreach (GraphNode n in graph) // first check if the station is in the graph
@@ -129,50 +130,51 @@ namespace GraphMaker
             }
             if (found == false) // the station does NOT exist, return
                 return false;
+            // END CHECK IF start NODE EXISTS
 
-            Queue<GraphNode> queue = new Queue<GraphNode>();
+
+            // BFS PROPER
+            Queue<GraphNode> queue = new Queue<GraphNode>(); // a queue to store the nodes to check
             List<string> visited = new List<string>(); // this list contains the name of nodes that have been visited.
 
-            queue.Enqueue(root);
-            visited.Add(root.name);
+            queue.Enqueue(root); // enqueue the root node
+            visited.Add(root.name); // and mark it as visited
 
             while (queue.Count > 0) // while the queue is not empty, we still have nodes to check
             {
-                GraphNode check = queue.Dequeue(); // check the next node
-                if (check.name == end.Name)
+                GraphNode check = queue.Dequeue(); // dequeue a node
+                if (check.name == end.Name) // if this is the end node, we are done
                 {
                     Console.WriteLine("FOUND IT!! Start {0} End {1}", start.Name, end.Name);
                     return true;
                 }
 
-                //visited.Add(n.name); // mark it as visited SHOULD THIS GO HERE?
-
+                // FIND ALL NODES THAT THIS NODE CONNECTS TO AND ADD THEM TO THE QUEUE
                 string[] lines = check.adjacency_list.Keys.ToArray<string>(); // get all the lines that this node is part of
                 foreach(string line in lines)
                 {
                     Dictionary<string, Station> adj = check.adjacency_list[line]; // grab the next/prev dict
-                    foreach (KeyValuePair<string, Station> pair in adj)
+                    foreach (KeyValuePair<string, Station> pair in adj) // for next, and prev
                     {
-                        if (pair.Value != null) // there is a next/prev node
+                        if (pair.Value != null) // either next or prev exists
                         {
-                            foreach (GraphNode n in graph) // find the station is in the graph
+                            foreach (GraphNode n in graph) // find the station in the graph (this sucks, I have to search the whole graph to find the node again)
                             {
-                                if (n.name == pair.Value.Name)
+                                if (n.name == pair.Value.Name) // if the node name matches the next/prev name we are checking
                                 {
                                     queue.Enqueue(n); // enqueue the node
                                     visited.Add(n.name); // mark it as visited
-                                    found = true; // the station does exist
+                                    found = true; // flag the station does exist
                                 }
                             }
-                            if (found == false) // the station does NOT exist, return false (this is bad)
+                            if (found == false) // the station does NOT exist, return false (this is bad and shouldn't happen, means we have bad references)
                                 return false;
                         }
                     }
 
                 }
-
             }
-            return false; // not found
+            return false; // not found, again, shouldn't happen if we are searching for a station that exists
         }
     }
 
