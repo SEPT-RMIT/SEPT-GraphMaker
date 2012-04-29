@@ -1,4 +1,4 @@
-﻿#undef DEBUG // #define DEBUG to print debug messages
+﻿﻿#undef DEBUG // #define DEBUG to print debug messages
 
 using System;
 using System.Collections.Generic;
@@ -12,7 +12,40 @@ namespace GraphMaker
         public string Name { get; set; }
         public Dictionary<int, string> Times { get; set; }
         //public GoogleGeoCodeResponse Geo { get; set; }
-        public Station(string name) { this.Name = name;  this.Times = new Dictionary<int, string>(); }
+        public Station(string name) { this.Name = name; this.Times = new Dictionary<int, string>(); }
+    }
+
+    /*
+     * This PathNode class is used to show the path taken in the journey, because some nodes are part of multiple lines,
+     * I want to show which line we were on when we passed the node. There is some redundant data here, some forethought
+     * and a better design up front would have avoided this, but I'm throwing efficiency out the window at the moment.
+     * 
+     * The output I'm envisioning will be something like:
+     * 
+     * Frankston Line : Parkdale Station
+     * Frankston Line : Mentone Station
+     * Bus 903 : Warrigal / Centre Dandenong Rds
+     * Bus 903 : Warrigal / South Rds
+     * Bus 903 : Warrigal / North Rds
+     * Bus 903 : Oakleigh Station
+     * Dandenong Line : Huntingdale Station
+     * 
+     * and maybe a nicer message like: "Take the Frankston Train from Parkdale to Mentone, then the 903 Bus from Mentone
+     * to Oakleigh station, then the Dandenong Train to Huntingdale."
+     * 
+     */
+    public class PathNode
+    {
+        public GraphNode node { get; set; }
+        public string station { get; set; }
+        public string line { get; set; }
+
+        public PathNode(string station, string line, GraphNode node)
+        {
+            this.station = station;
+            this.line = line;
+            this.node = node;
+        }
     }
 
     public class GraphNode
@@ -33,7 +66,7 @@ namespace GraphMaker
             adjacency_list.Add(line, adj);
         }
     }
-    
+
     public class Graph
     {
         List<GraphNode> graph; // the nodes of the graph, each node is connected by a reference to the next
@@ -62,7 +95,7 @@ namespace GraphMaker
                 // and these next/prev references to it's adjacency_list rather than
                 // add a duplicate node
 
-                foreach(GraphNode n in graph)
+                foreach (GraphNode n in graph)
                 {
                     if (n.name == line[i].Name) // if a node exists with this name
                     {
@@ -94,7 +127,7 @@ namespace GraphMaker
                     Dictionary<string, Station> adj = node.adjacency_list[line]; // grab the next/prev dict
                     foreach (KeyValuePair<string, Station> pair in adj)
                     {
-                        
+
                         Console.Write("{0} ", pair.Key); // print "next" / "prev"
                         if (pair.Value != null) // first/last station have no reference for prev/next respectively
                         {
@@ -117,8 +150,9 @@ namespace GraphMaker
         // Breadth First Search
         public bool BFS(Station start, Station end)
         {
-            // this dictionary contains GraphNode pairs, a node and it's previous node, to determine the path
-            Dictionary<GraphNode, GraphNode> path = new Dictionary<GraphNode, GraphNode>();
+            // this dictionary contains PathNode pairs, a node and it's previous node, to determine the path
+            // a PathNode contains a GraphNode and the name of the line that was used when passing the node.
+            Dictionary<PathNode, PathNode> pathnode_path = new Dictionary<PathNode, PathNode>();
 
             // FIRST CHECK IF THE start NODE EXISTS
             GraphNode root = null;
@@ -135,78 +169,71 @@ namespace GraphMaker
                 return false;
             // END CHECK IF start NODE EXISTS
 
-
             // BFS PROPER
-            Queue<GraphNode> queue = new Queue<GraphNode>(); // a queue to store the nodes to check
-            List<string> visited = new List<string>(); // this list contains the name of nodes that have been visited.
+            Queue<PathNode> pathnode_queue = new Queue<PathNode>(); // pathnode stores the line as well as the node
+            List<string> visited = new List<string>(); // this list contains the name of ALL nodes that have been visited.
 
-            queue.Enqueue(root); // enqueue the root node
-            visited.Add(root.name); // and mark it as visited
-            path.Add(root, null); // root came from null
+            pathnode_queue.Enqueue(new PathNode(root.name, "", root)); // enqueue the root node (starting point)
+            visited.Add(root.name); // and mark it as visited (this list keeps track of visited nodes so they don't get visited again)
+            pathnode_path.Add(new PathNode(root.name, "", root), null); // no line given to PathNode just yet
 
-            while (queue.Count > 0) // while the queue is not empty, we still have nodes to check
+            while (pathnode_queue.Count > 0) // while the queue is not empty, we still have nodes to check
             {
-                GraphNode check = queue.Dequeue(); // dequeue a node
-                Console.WriteLine("Checking: {0}", check.name);
-                if (check.name == end.Name) // if this is the end node, we are done
+                PathNode pathnode_check = pathnode_queue.Dequeue(); // dequeue the next node
+
+                if (pathnode_check.node.name == end.Name) // if this is the end node, we are done
                 {
-                    Console.WriteLine("FOUND IT!! Start {0} End {1}\n", start.Name, end.Name);
-                    // dump the visited list, not particularly useful, it shows all the nodes BFS visited
-                    foreach (string station in visited.ToArray())
+                    Console.WriteLine("FOUND IT!! Start {0} End {1}\n", start.Name, end.Name); // print a message
+
+                    PathNode pathnode_curr = pathnode_check, pathnode_prev; // set curr to the node we found and init prev to null
+                    List<string> pathnode_list_path = new List<string>(); // this list contains the path
+                    pathnode_list_path.Add(pathnode_curr.line + " - " + pathnode_curr.station); // add the node we just found as the end of the path
+                    while (pathnode_curr.node != root) // while we are not back at the first node
                     {
-                        Console.WriteLine("Visited List: {0}", station);
-                    }
-                    // backtrack the path, this IS USEFUL! We can determine the path we took to find the end node
-                    GraphNode curr = check, prev = null; // set curr to the node we found and init prev to null
-                    List<string> list_path = new List<string>(); // this list contains the path
-                    list_path.Add(curr.name); // add the node we just found as the end of the path
-                    while (curr != root) // while we are not back at the first node
-                    {
-                        if (path.TryGetValue(curr, out prev) == true) // found a value matching the key
+                        if (pathnode_path.TryGetValue(pathnode_curr, out pathnode_prev) == true) // found a value matching the key
                         {
-                            list_path.Add(prev.name); // add the previous node to the path
-                            curr = prev; // set current node to previous node and repeat
+                            pathnode_list_path.Add(pathnode_curr.line + " - " + pathnode_prev.station); // add the previous node to the path
+                            pathnode_curr = pathnode_prev; // set current node to previous node and repeat
                         }
                         else
                         {
-                            Console.WriteLine("Couldn't find the prev node, path broken."); // uh oh
+                            Console.WriteLine("Couldn't find the prev pathnode, path broken."); // uh oh
                             break; // finished, we're doomed
                         }
                     }
                     //print the path to console
-                    Console.WriteLine(); // newline
-                    foreach (string station in list_path)
+                    Console.WriteLine();
+                    foreach (string s in pathnode_list_path)
                     {
-                        Console.WriteLine("Path: {0}", station); // each station in the path
+                        Console.WriteLine("Path: {0}", s); // print each 'line - station' in the path
                     }
-
                     return true;
                 }
 
                 // FIND ALL NODES THAT THIS NODE CONNECTS TO AND ADD THEM TO THE QUEUE
-                string[] lines = check.adjacency_list.Keys.ToArray<string>(); // get all the lines that this node is part of
-                foreach(string line in lines)
+                string[] lines = pathnode_check.node.adjacency_list.Keys.ToArray<string>(); // get all the lines that this node is part of
+                foreach (string line in lines)
                 {
-                    Dictionary<string, Station> adj = check.adjacency_list[line]; // grab the next/prev dict
+                    Dictionary<string, Station> adj = pathnode_check.node.adjacency_list[line]; // grab the next/prev dict
                     foreach (KeyValuePair<string, Station> pair in adj) // for next, and prev
                     {
                         if (pair.Value != null) // either next or prev exists
                         {
                             foreach (GraphNode n in graph) // find the station in the graph (this sucks, I have to search the whole graph to find the node again)
                             {
-                                if (n.name == pair.Value.Name && visited.Contains(n.name) == false) // if the node name matches the next/prev name we are checking
+                                if (n.name == pair.Value.Name && visited.Contains(n.name) == false) // if the node name matches the next/prev name we are checking AND we haven't visited it before
                                 {
-                                    queue.Enqueue(n); // enqueue the node
+                                    PathNode pathnode_to_queue = new PathNode(n.name, line, n); // create a new PathNode with the node name, line and a copy of the GraphNode
+                                    pathnode_queue.Enqueue(pathnode_to_queue); // enqueue it
                                     visited.Add(n.name); // mark it as visited
                                     found = true; // flag the station does exist
-                                    path.Add(n, check); // node n, came from node check
+                                    pathnode_path.Add(pathnode_to_queue, pathnode_check); // add the node, and it's previous node to the path so we can retrace steps at the end
                                 }
                             }
                             if (found == false) // the station does NOT exist, return false (this is bad and shouldn't happen, means we have bad references)
                                 return false;
                         }
                     }
-
                 }
             }
             return false; // not found, again, shouldn't happen if we are searching for a station that exists
@@ -222,6 +249,7 @@ namespace GraphMaker
             List<Station> DandenongLine = new List<Station>();
             List<Station> Bus903 = new List<Station>();
 
+            FrankstonLine.Add(new Station("Parkdale"));
             FrankstonLine.Add(new Station("Mentone"));
             FrankstonLine.Add(new Station("Cheltenham"));
             FrankstonLine.Add(new Station("Highett"));
@@ -263,7 +291,7 @@ namespace GraphMaker
              * A cycle exists from Mentone >> Caulfield >> Oakleigh >> Mentone
              **/
             Console.WriteLine();
-            bool bfs_found = graph.BFS(new Station("Mentone"), new Station("Warrigal Rd/Princes Hwy"));
+            bool bfs_found = graph.BFS(new Station("Parkdale"), new Station("Murrumbeena"));
 
             Console.ReadKey();
         }
